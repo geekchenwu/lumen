@@ -21,6 +21,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, GObject, Gtk, Pango, PangoC
 
 from . import APP_ID, DAEMON_IFACE, DAEMON_PATH, firstrun, render, theme  # noqa: E402
 from .overlay import Session  # noqa: E402
+from .record import Recorder  # noqa: E402
 from .pin import PinWindow  # noqa: E402
 from .portal import ScreenshotPortal  # noqa: E402
 
@@ -47,13 +48,14 @@ DAEMON_XML = f"""
     <method name="OpenFolder"/>
     <method name="PortalCapture"><arg type="s" name="mode" direction="in"/></method>
     <method name="PortalPin"/>
+    <method name="StopRecording"/>
   </interface>
 </node>
 """
 
 # Methods only GNOME Shell may call, keyed to the index of the argument that
 # names a file in its private capture directory (None: no file).
-SHELL_ONLY = {'Capture': 1, 'PinImage': 0, 'Pixels': 0, 'Begin': None}
+SHELL_ONLY = {'Capture': 1, 'PinImage': 0, 'Pixels': 0, 'Begin': None, 'StopRecording': None}
 
 
 def screenshots_dir():
@@ -82,6 +84,7 @@ class LumenApp(Gtk.Application):
         self.pins_hidden = False
         self.last = None
         self.last_sel = None
+        self.recorder = None
         self.style = {'color': theme.PALETTE[0],
                       'sizes': {'stroke': 1, 'marker': 1, 'text': 1, 'mosaic': 1, 'step': 1}}
         self._registration = 0
@@ -217,6 +220,7 @@ class LumenApp(Gtk.Application):
             'OpenFolder': self.open_folder,
             'PortalCapture': lambda: self._portal.capture(args[0]),
             'PortalPin': self.portal_pin,
+            'StopRecording': self.stop_recording,
         }[method]
         GLib.idle_add(lambda: handler() and False)
 
@@ -292,6 +296,17 @@ class LumenApp(Gtk.Application):
 
     def remember(self, texture, device_scale):
         self.last = (texture, device_scale)
+
+    def stop_recording(self):
+        if self.recorder is not None:
+            self.recorder.stop()
+
+    def begin_recording(self, area, fps=30, stage=None):
+        if self.recorder is not None:
+            return
+        self.recorder = Recorder(self, area, fps, stage)
+        self.recorder.start()
+
 
     # ---- clipboard / files -------------------------------------------------
 

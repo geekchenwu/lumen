@@ -74,14 +74,15 @@ Depends: gnome-shell (>= 50), gnome-shell (<< 51), python3 (>= 3.12), python3-gi
  xdg-desktop-portal (>= 1.16), xdg-desktop-portal-gnome
 Section: graphics
 Priority: optional
-Description: instant screenshots, annotation and pinning for GNOME
+Description: instant screenshots, annotation, pinning and recording for GNOME
  Lumen captures from inside GNOME Shell the moment F1 is pressed, so there
  is no start-up delay and open menus, popups and tooltips stay in the shot.
  .
  It auto-detects windows, menus and panels, offers a pixel loupe and colour
  picker, nine annotation tools (rectangle, ellipse, arrow, line, pen,
  marker, text, mosaic, step markers) and pins captures or clipboard
- contents on top of all windows.
+ contents on top of all windows. A selected region can also be recorded
+ through GNOME Shell's existing screencast.
 EOF
 (cd "$root" && find . -path ./DEBIAN -prune -o -type f -printf '%P\0' | sort -z \
   | xargs -0 md5sum > DEBIAN/md5sums)

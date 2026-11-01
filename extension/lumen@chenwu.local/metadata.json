@@ -1,10 +1,10 @@
 {
   "uuid": "lumen@chenwu.local",
   "name": "鹿门 Lumen",
-  "description": "Instant screenshots with annotation and pinning. Captures inside GNOME Shell, so menus and popups stay in the shot.",
+  "description": "Instant screenshots, annotation, pinning and region recording. Captures inside GNOME Shell, so menus and popups stay in the shot.",
   "shell-version": ["50"],
   "settings-schema": "org.gnome.shell.extensions.lumen",
-  "version": 5,
-  "version-name": "1.4.0",
+  "version": 6,
+  "version-name": "1.5.0",
   "contact-email": "geekchenwu@gmail.com"
 }

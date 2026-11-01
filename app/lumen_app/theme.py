@@ -1,4 +1,4 @@
-"""Graphite controls with a warm orange accent for selection and feedback."""
+"""Hermès orange draws. Cinnabar confirms."""
 import os
 
 import gi
@@ -10,7 +10,11 @@ from gi.repository import Gdk, Gtk, PangoCairo  # noqa: E402
 
 ACCENT = '#F37021'
 ACCENT_HOVER = '#FF8A3D'
+# Editor confirm and the single selection corner. Deeper than the annotation red.
+CINNABAR = '#C44536'
+CINNABAR_HOVER = '#D35445'
 INK = '#0E0F11'
+PAPER = '#F4EFE6'
 GLASS = (0.071, 0.075, 0.086, 0.92)
 # Must match DIM in extension.js so the frozen frame hands off seamlessly.
 DIM = (8 / 255, 9 / 255, 12 / 255, 0.5)
@@ -88,18 +92,25 @@ window.lumen-overlay.shell-backdrop {{ background: transparent; }}
 }}
 .lumen-bar button:hover {{ background: rgba(255, 255, 255, 0.09); }}
 .lumen-bar button:active {{ background: rgba(255, 255, 255, 0.14); }}
-.lumen-bar button:checked {{ background: {ACCENT}; color: {INK}; }}
-.lumen-bar button.primary {{ background: {ACCENT}; color: {INK}; min-width: 40px; }}
-.lumen-bar button.primary:hover {{ background: {ACCENT_HOVER}; }}
-.lumen-bar button.danger:hover {{ background: rgba(255, 61, 46, 0.22); color: #FF8A80; }}
-.lumen-bar button:disabled {{ color: rgba(232, 234, 237, 0.28); }}
-.lumen-bar .sep {{ min-width: 1px; background: rgba(255, 255, 255, 0.10); margin: 8px 5px; }}
-
-.lumen-props button {{ min-width: 30px; min-height: 30px; border-radius: 8px; }}
-.lumen-props button:checked {{ background: rgba(255, 255, 255, 0.14); color: #fff; }}
+.lumen-bar button:checked {{ background: rgba(243, 112, 33, 0.22); color: {PAPER}; }}
+.lumen-bar button.swatch {{ min-width: 28px; min-height: 28px; margin: 3px 0; border-radius: 8px; }}
+.lumen-bar button.mode {{ min-width: 58px; padding: 0 12px; font-size: 13px; }}
+.lumen-bar button.primary {{ background: {CINNABAR}; color: {PAPER}; min-width: 40px; }}
+.lumen-time {{
+  color: {PAPER}; font-family: "{MONO}"; font-size: 13px;
+  font-weight: 600; padding: 0 8px 0 4px;
+}}
+.lumen-rec-dot {{
+  background: {CINNABAR}; border-radius: 99px;
+  min-width: 8px; min-height: 8px; margin: 0 0 0 8px;
+}}
+.lumen-bar button.primary:hover {{ background: {CINNABAR_HOVER}; }}
+.lumen-bar button.danger:hover {{ background: rgba(196, 69, 54, 0.22); color: #F0B2A8; }}
+.lumen-bar button:disabled {{ color: rgba(244, 239, 230, 0.28); }}
+.lumen-bar .sep {{ min-width: 1px; background: rgba(244, 239, 230, 0.12); margin: 8px 5px; }}
 
 .lumen-text-editor {{
-  border: 1px dashed {rgba(ACCENT, 0.85).to_string()};
+  border: 1px dashed rgba(243, 112, 33, 0.85);
   border-radius: 4px;
   padding: 2px 4px;
   background: rgba(0, 0, 0, 0.0);
@@ -118,6 +129,26 @@ tooltip.background {{
 tooltip label {{ color: #E8EAED; font-family: "{SANS}", "Noto Sans CJK SC"; font-size: 12px; }}
 
 window.lumen-pin {{ background: transparent; }}
+window.lumen-record {{ background: transparent; }}
+window.lumen-countdown {{ background: transparent; }}
+window.lumen-countdown > .titlebar {{
+  min-height: 0; min-width: 0; padding: 0; margin: 0;
+  border: none; background: none; box-shadow: none;
+}}
+.lumen-count {{
+  color: #C44536;
+  background: rgba(14, 15, 17, 0.94);
+  border: 3px solid #F37021;
+  border-radius: 36px;
+  padding: 4px 28px 16px;
+  font-family: "{MONO}", monospace;
+  font-size: 120px;
+  font-weight: 700;
+}}
+window.lumen-record > .titlebar {{
+  min-height: 0; min-width: 0; padding: 0; margin: 0;
+  border: none; background: none; box-shadow: none;
+}}
 window.lumen-pin > .titlebar {{
   min-height: 0; min-width: 0; padding: 0; margin: 0;
   border: none; background: none; box-shadow: none;

@@ -45,6 +45,13 @@ const SHELL_IFACE = `<node>
     <method name="Capture"><arg type="s" direction="in" name="mode"/></method>
     <method name="Pin"/>
     <method name="TogglePins"/>
+    <method name="ShowRecordBar">
+      <arg type="i" direction="in" name="x"/>
+      <arg type="i" direction="in" name="y"/>
+      <arg type="i" direction="in" name="w"/>
+      <arg type="i" direction="in" name="h"/>
+    </method>
+    <method name="HideRecordBar"/>
     <method name="MovePointer">
       <arg type="d" direction="in" name="x"/><arg type="d" direction="in" name="y"/>
     </method>
@@ -136,6 +143,7 @@ export default class LumenExtension extends Extension {
         this._watched = null;
         this._overlays = null;
 
+        this._hideRecordBar();
         this._dbus.unexport();
         this._dbus = null;
 
@@ -598,6 +606,38 @@ export default class LumenExtension extends Extension {
                 place();
             else
                 this._once(win, 'shown', place);
+        } else if (title.startsWith('lumen-countdown') || title.startsWith('lumen-record')) {
+            const countdown = title.startsWith('lumen-countdown');
+            win._lumenRole = countdown ? 'countdown' : 'record';
+            Main.wm.skipNextEffect(actor);
+            if (!countdown)
+                actor.opacity = 0;
+            const place = () => {
+                const m = title.match(/@(-?\d+),(-?\d+)/);
+                const frame = win.get_frame_rect();
+                let x = 8;
+                let y = 8;
+                if (m) {
+                    x = parseInt(m[1]);
+                    y = parseInt(m[2]);
+                }
+                x = Math.max(8, Math.min(x, global.stage.width - Math.max(frame.width, 1) - 8));
+                y = Math.max(8, Math.min(y, global.stage.height - Math.max(frame.height, 1) - 8));
+                win.make_above();
+                win.stick();
+                win.move_frame(true, Math.round(x), Math.round(y));
+                actor.opacity = 255;
+            };
+            if (win.get_compositor_private()?.visible && win.showing_on_its_workspace())
+                place();
+            else
+                this._once(win, 'shown', place);
+            // The first frame rect is often still empty; place again once it exists.
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 120, () => {
+                if (win.get_compositor_private())
+                    place();
+                return GLib.SOURCE_REMOVE;
+            });
         }
     }
 
@@ -696,6 +736,100 @@ export default class LumenExtension extends Extension {
             () => this._callApp('OpenFolder', null).catch(logError));
         item('设置', null, () => this.openPreferences());
         return button;
+    }
+
+    _outsideRecordBar(area, width, height) {
+        const sw = global.stage.width;
+        const sh = global.stage.height;
+        const gap = 18;
+        const {x: sx, y: sy, w, h} = area;
+        const overlaps = (x, y) => !(x + width <= sx - 4 || x >= sx + w + 4 ||
+            y + height <= sy - 4 || y >= sy + h + 4);
+        const candidates = [
+            [sx + w - width, sy + h + gap],
+            [sx, sy + h + gap],
+            [sx + w - width, sy - height - gap],
+            [sx, sy - height - gap],
+            [sx + w + gap, sy + h - height],
+            [sx - width - gap, sy + h - height],
+            [sx + w + gap, sy],
+            [sx - width - gap, sy],
+        ];
+        for (const [rawX, rawY] of candidates) {
+            const x = Math.max(8, Math.min(rawX, sw - width - 8));
+            const y = Math.max(8, Math.min(rawY, sh - height - 8));
+            if (!overlaps(x, y))
+                return [Math.round(x), Math.round(y)];
+        }
+        return [Math.round(Math.max(8, (sw - width) / 2)), Math.round(sh - height - 8)];
+    }
+
+    _placeRecordBar() {
+        const bar = this._recordBar;
+        if (!bar || bar.width < 2 || bar.height < 2)
+            return;
+        const [x, y] = this._outsideRecordBar(this._recordArea, bar.width, bar.height);
+        bar.set_position(x, y);
+    }
+
+    _showRecordBar(x, y, w, h) {
+        this._hideRecordBar();
+        const bar = new St.BoxLayout({
+            orientation: Clutter.Orientation.HORIZONTAL,
+            reactive: true,
+            style: 'background-color: rgba(18,19,22,0.96); border-radius: 16px; padding: 8px 10px;',
+        });
+        const dot = new St.Widget({
+            style: 'background-color: #C44536; border-radius: 5px; width: 10px; height: 10px; margin: 12px 8px;',
+        });
+        const time = new St.Label({
+            text: '00:00',
+            style: 'color: #F4EFE6; font-size: 15px; font-weight: bold; padding: 8px 10px;',
+        });
+        const stop = new St.Button({
+            style: 'background-color: #C44536; color: #F4EFE6; border-radius: 12px; padding: 8px 16px; font-weight: bold;',
+            label: '停止',
+            can_focus: true,
+        });
+        stop.connect('clicked', () => {
+            this._callApp('StopRecording', null).catch(e => logError(e, 'lumen: stop recording'));
+        });
+        bar.add_child(dot);
+        bar.add_child(time);
+        bar.add_child(stop);
+        Main.layoutManager.uiGroup.add_child(bar);
+        this._recordBar = bar;
+        this._recordArea = {x, y, w, h};
+        this._recordT0 = GLib.get_monotonic_time();
+        bar.connect('notify::width', () => this._placeRecordBar());
+        bar.connect('notify::height', () => this._placeRecordBar());
+        this._recordTick = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+            if (!this._recordBar)
+                return GLib.SOURCE_REMOVE;
+            const sec = Math.max(0, Math.floor((GLib.get_monotonic_time() - this._recordT0) / 1e6));
+            time.text = `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+            this._placeRecordBar();
+            return GLib.SOURCE_CONTINUE;
+        });
+        this._placeRecordBar();
+    }
+
+    _hideRecordBar() {
+        if (this._recordTick) {
+            GLib.source_remove(this._recordTick);
+            this._recordTick = 0;
+        }
+        this._recordBar?.destroy();
+        this._recordBar = null;
+        this._recordArea = null;
+    }
+
+    ShowRecordBar(x, y, w, h) {
+        this._showRecordBar(x, y, w, h);
+    }
+
+    HideRecordBar() {
+        this._hideRecordBar();
     }
 
     // ---- D-Bus methods ------------------------------------------------

@@ -17,7 +17,8 @@ gi.require_version('Pango', '1.0')
 from gi.repository import Gdk, Gio, GLib, Graphene, Gsk, Gtk, Pango  # noqa: E402
 
 from . import SHELL_IFACE, SHELL_PATH, render, theme  # noqa: E402
-from .toolbar import TOOL_KEYS, PropsBar, Toolbar, size_family  # noqa: E402
+from .toolbar import TOOL_KEYS, ModeBar, Toolbar, size_family  # noqa: E402
+from .record import QUALITIES, stage_area  # noqa: E402
 
 HANDLE_CURSORS = {
     'nw': 'nwse-resize', 'n': 'ns-resize', 'ne': 'nesw-resize', 'e': 'ew-resize',
@@ -29,13 +30,13 @@ WASD = {'a': 'left', 'd': 'right', 'w': 'up', 's': 'down'}
 LOUPE_CELLS = 15
 LOUPE_CELL = 8
 
-ACCENT = theme.rgba(theme.ACCENT)
-ACCENT_SOFT = theme.rgba(theme.ACCENT, 0.28)
+PAPER = theme.rgba(theme.PAPER, 0.92)
+ORANGE = theme.rgba(theme.ACCENT)
+ORANGE_SOFT = theme.rgba(theme.ACCENT, 0.34)
 DIM = theme.rgba(theme.DIM)
 GLASS = theme.rgba(theme.GLASS)
 WHITE = theme.rgba('#FFFFFF')
 WHITE_DIM = theme.rgba('#FFFFFF', 0.55)
-HALO = theme.rgba('#000000', 0.38)
 SHADOW = theme.rgba('#000000', 0.38)
 GRID = theme.rgba('#000000', 0.14)
 
@@ -83,6 +84,11 @@ class Session:
         self.waiting = []
         self.f = cap.f
         self.state = 'hover'
+        self.phase = 'choose'  # choose a still or a recording, then edit
+        self.capture_kind = 'still'
+        self.record_quality = 1
+        self.count_left = 0
+        self._count_source = 0
         self.sel = None
         self.hover = None
         self.tool = None
@@ -238,12 +244,18 @@ class Session:
     def sync_chrome(self):
         if self.closed:
             return
-        show = (self.state == 'selected' and self.sel is not None and not self.chrome_hidden and
-                not (self.drag and self.drag['op'] in ('new', 'move', 'resize')))
+        dragging = self.drag and self.drag['op'] in ('new', 'move', 'resize')
+        armed = (self.phase == 'choose' and self.capture_kind == 'record' and
+                 not self.chrome_hidden and not dragging)
+        show = (self.phase != 'count' and not self.chrome_hidden and not dragging and
+                ((self.state == 'selected' and self.sel is not None) or armed))
         host = None
         if show:
-            x, y, w, h = self.sel
-            corner = (x + w - 1, y + h - 1)
+            if self.sel:
+                x, y, w, h = self.sel
+                corner = (x + w - 1, y + h - 1)
+            else:
+                corner = self.pointer
             host = next((win for win in self.windows if inside(corner, win.canvas.ip_rect())),
                         self.windows[0])
         for win in self.windows:
@@ -263,7 +275,14 @@ class Session:
             self.commit_editor()
             self.drag = {'op': 'none', 'start': p}
             return
+        if self.phase == 'count':
+            return
         if self.state == 'hover':
+            self.drag = {'op': 'pending', 'start': p}
+            return
+        # In record mode the area outside the current selection starts a new one.
+        if (self.phase == 'choose' and self.capture_kind == 'record' and self.sel and
+                not inside(p, self.sel)):
             self.drag = {'op': 'pending', 'start': p}
             return
         handle = self.hit(p)
@@ -404,6 +423,7 @@ class Session:
     def reset_selection(self):
         self.commit_editor(discard=True)
         self.state = 'hover'
+        self.phase = 'choose'
         self.sel = None
         self.tool = None
         self.chrome_hidden = False
@@ -419,6 +439,10 @@ class Session:
             self.commit_editor()
         elif self.tool:
             self.set_tool(None)
+        elif self.phase == 'edit':
+            self.phase = 'choose'
+            self.sync_chrome()
+            self.redraw()
         elif self.state == 'selected':
             self.reset_selection()
         else:
@@ -426,7 +450,10 @@ class Session:
 
     def double_click(self, p):
         if self.state == 'selected' and self.tool is None and inside(p, self.sel):
-            self.finish('copy')
+            if self.phase == 'choose':
+                self.confirm_mode()
+            else:
+                self.finish('copy')
 
     def scroll(self, dy):
         if self.state != 'selected' or not self.tool:
@@ -489,13 +516,26 @@ class Session:
                 return True
             return False
 
+        if self.phase == 'count':
+            if name == 'escape':
+                self._stop_count()
+                self.phase = 'choose'
+                self.sync_chrome()
+                self.redraw()
+            return True
+
         if name == 'escape':
             self.cancel()
         elif name in ('return', 'kp_enter'):
             if self.state == 'hover' and self.hover:
                 self.sel = self.hover.rect
-                self.state = 'selected'
-            self.finish('copy')
+                self._selected()
+                self.sync_chrome()
+                self.redraw()
+            elif self.phase == 'choose':
+                self.confirm_mode()
+            else:
+                self.finish('copy')
         elif ctrl and name == 'c':
             self.finish('copy')
         elif ctrl and name == 's':
@@ -510,6 +550,8 @@ class Session:
             self.sel = (0, 0, self.cap.width, self.cap.height)
             self.state = 'selected'
             self.hover = None
+            if self.phase != 'edit':
+                self.phase = 'choose'
             self.sync_chrome()
             self.redraw()
         elif self.state == 'hover' and name == 'c':
@@ -529,15 +571,18 @@ class Session:
             # Before a region is fixed, and while dragging one, the keys
             # step the pointer itself, one image pixel at a time.
             self.nudge_pointer(*ARROWS[WASD.get(name, name)])
+        elif self.state == 'selected' and self.phase == 'choose' and name in ('left', 'right'):
+            self.capture_kind = 'record' if name == 'right' else 'still'
+            self.sync_chrome()
         elif self.state == 'selected' and name in ARROWS:
             self.nudge(name, 'grow' if ctrl else 'shrink' if shift else 'move')
         elif self.state == 'selected' and name == 'space':
             self.chrome_hidden = not self.chrome_hidden
             self.sync_chrome()
-        elif self.state == 'selected' and self.tool and name in ('bracketleft', 'bracketright'):
+        elif self.state == 'selected' and self.phase == 'edit' and self.tool and name in ('bracketleft', 'bracketright'):
             self.set_size_index(self.size_index() + (1 if name == 'bracketright' else -1))
             self.sync_chrome()
-        elif self.state == 'selected' and not ctrl and name in TOOL_KEYS:
+        elif self.state == 'selected' and self.phase == 'edit' and not ctrl and name in TOOL_KEYS:
             tool = TOOL_KEYS[name]
             self.set_tool(None if self.tool == tool else tool)
         else:
@@ -601,6 +646,42 @@ class Session:
         self.app.copy_text(self.color_string(self.cap.color_at(*p)))
         self.close()
 
+    def confirm_mode(self):
+        if self.closed or self.phase == 'count' or self.state != 'selected' or not self.sel:
+            return
+        if self.capture_kind == 'record':
+            stage = self.cap.meta.get('stage')
+            area = stage_area(self.sel, self.f, stage)
+            if area[2] < 16 or area[3] < 16:
+                return
+            _name, fps = QUALITIES[self.record_quality]
+            self.app.begin_recording(area, fps, stage)
+            self.close()
+            return
+        self.phase = 'edit'
+        self.sync_chrome()
+        self.redraw()
+
+    def _stop_count(self):
+        if self._count_source:
+            GLib.source_remove(self._count_source)
+            self._count_source = 0
+
+    def _count_tick(self):
+        if self.closed or self.phase != 'count':
+            self._count_source = 0
+            return False
+        self.count_left -= 1
+        if self.count_left > 0:
+            self.redraw()
+            return True
+        self._count_source = 0
+        area = stage_area(self.sel, self.f, self.cap.meta.get('stage'))
+        _name, fps = QUALITIES[self.record_quality]
+        self.app.begin_recording(area, fps)
+        self.close()
+        return False
+
     def finish(self, action):
         if self.closed:
             return
@@ -632,6 +713,7 @@ class Session:
     def close(self):
         if self.closed:
             return
+        self._stop_count()
         self.closed = True
         for win in self.windows:
             win.destroy()
@@ -689,6 +771,7 @@ class Canvas(Gtk.Widget):
         self.s = session
         self.mon = mon
         self.mono = Pango.FontDescription.from_string(f'{theme.MONO} Medium 9.5')
+        self.count_font = Pango.FontDescription.from_string(f'{theme.MONO} Bold 64')
         self.mono_big = Pango.FontDescription.from_string(f'{theme.MONO} SemiBold 10.5')
         self.sans = Pango.FontDescription.from_string(f'{theme.SANS}, Noto Sans CJK SC Medium 10')
         self._loupe_key = None
@@ -769,6 +852,10 @@ class Canvas(Gtk.Widget):
         if s.state != 'selected':
             self._set_cursor('crosshair')
             return
+        if (s.phase == 'choose' and s.capture_kind == 'record' and s.sel and
+                not inside(s.pointer, s.sel)):
+            self._set_cursor('crosshair')
+            return
         hit = s.hit(s.pointer)
         if hit == 'draw':
             self._set_cursor('text' if s.tool == 'text' else 'crosshair')
@@ -802,6 +889,8 @@ class Canvas(Gtk.Widget):
             self._paint_hover(snap, s.hover)
         if s.sel:
             self._paint_selection(snap)
+        if s.phase == 'count' and s.sel:
+            self._paint_count(snap)
         if s.state in ('hover', 'selecting'):
             self._paint_guides(snap, w, h)
         if s.state == 'hover':
@@ -852,9 +941,13 @@ class Canvas(Gtk.Widget):
     def _border(self, snap, x, y, w, h, width, color):
         snap.append_border(RR(x, y, w, h, 0), [width] * 4, [color] * 4)
 
+    def _frame(self, snap, x, y, w, h):
+        self._border(snap, x - 1, y - 1, w + 2, h + 2, 1.0, PAPER)
+        self._border(snap, x, y, w, h, 1.0, ORANGE)
+
     def _paint_hover(self, snap, target):
         x, y, w, h = self.rect_widget(target.rect)
-        self._border(snap, x - 1, y - 1, w + 2, h + 2, 2.0, ACCENT)
+        self._frame(snap, x, y, w, h)
         label = target.label or ''
         text = f'{label}   {target.rect[2]} × {target.rect[3]}' if label else \
             f'{target.rect[2]} × {target.rect[3]}'
@@ -863,24 +956,7 @@ class Canvas(Gtk.Widget):
     def _paint_selection(self, snap):
         s = self.s
         x, y, w, h = self.rect_widget(s.sel)
-        self._border(snap, x - 2, y - 2, w + 4, h + 4, 1.0, HALO)
-        self._border(snap, x - 1, y - 1, w + 2, h + 2, 1.0, ACCENT)
-        if s.state == 'selected':
-            t = 3.0
-            L = min(18.0, w / 2.5, h / 2.5) + t
-            for rx, ry, rw, rh in (
-                (x - t, y - t, L, t), (x - t, y - t, t, L),
-                (x + w + t - L, y - t, L, t), (x + w, y - t, t, L),
-                (x - t, y + h, L, t), (x - t, y + h + t - L, t, L),
-                (x + w + t - L, y + h, L, t), (x + w, y + h + t - L, t, L),
-            ):
-                snap.append_color(ACCENT, R(rx, ry, rw, rh))
-            if w > 72:
-                snap.append_color(ACCENT, R(x + w / 2 - 8, y - t, 16, t))
-                snap.append_color(ACCENT, R(x + w / 2 - 8, y + h, 16, t))
-            if h > 72:
-                snap.append_color(ACCENT, R(x - t, y + h / 2 - 8, t, 16))
-                snap.append_color(ACCENT, R(x + w, y + h / 2 - 8, t, 16))
+        self._frame(snap, x, y, w, h)
         self._pill_near(snap, x, y, f'{s.sel[2]} × {s.sel[3]}')
 
     def _layout(self, text, desc, markup=False):
@@ -892,7 +968,7 @@ class Canvas(Gtk.Widget):
             layout.set_text(text, -1)
         return layout
 
-    def _pill(self, snap, x, y, layout, fg=ACCENT, pad_x=9, pad_y=4, radius=7):
+    def _pill(self, snap, x, y, layout, fg=WHITE_DIM, pad_x=9, pad_y=4, radius=7):
         _ink, logical = layout.get_pixel_extents()
         w, h = logical.width + 2 * pad_x, logical.height + 2 * pad_y
         rr = RR(x, y, w, h, radius)
@@ -921,11 +997,27 @@ class Canvas(Gtk.Widget):
         px, py = self.to_widget(*self.s.pointer)
         if not (0 <= px <= w and 0 <= py <= h):
             return
-        snap.append_color(ACCENT_SOFT, R(0, int(py), w, 1))
-        snap.append_color(ACCENT_SOFT, R(int(px), 0, 1, h))
+        snap.append_color(ORANGE_SOFT, R(0, int(py), w, 1))
+        snap.append_color(ORANGE_SOFT, R(int(px), 0, 1, h))
+
+    def _paint_count(self, snap):
+        x, y, w, h = self.rect_widget(self.s.sel)
+        layout = self._layout(str(self.s.count_left), self.count_font)
+        _ink, logical = layout.get_pixel_extents()
+        px = x + max(0, (w - logical.width) / 2) - 22
+        py = y + max(0, (h - logical.height) / 2) - 12
+        self._pill(snap, px, py, layout, fg=CINNABAR, pad_x=22, pad_y=10, radius=20)
 
     def _paint_hint(self, snap, w, h):
         a = theme.ACCENT
+        if self.s.capture_kind == 'record':
+            markup = (f'拖拽框选录制区域   选区外拖拽可重选   '
+                      f'<span foreground="{a}">Esc</span> 退出')
+            layout = self._layout(markup, self.sans, markup=True)
+            _ink, logical = layout.get_pixel_extents()
+            self._pill(snap, (w - logical.width - 28) / 2, h - logical.height - 40,
+                       layout, fg=WHITE_DIM, pad_x=14, pad_y=7, radius=10)
+            return
         markup = (f'拖拽框选   单击选窗口   <span foreground="{a}">C</span> 复制色值   '
                   f'<span foreground="{a}">Shift</span> 切换格式   '
                   f'<span foreground="{a}">WASD</span> 逐像素   '
@@ -967,10 +1059,10 @@ class Canvas(Gtk.Widget):
             snap.append_color(GRID, R(lx + i * cell, ly, 1, size))
             snap.append_color(GRID, R(lx, ly + i * cell, size, 1))
         c = n // 2
-        snap.append_color(ACCENT_SOFT, R(lx, ly + c * cell, size, cell))
-        snap.append_color(ACCENT_SOFT, R(lx + c * cell, ly, cell, size))
+        snap.append_color(ORANGE_SOFT, R(lx, ly + c * cell, size, cell))
+        snap.append_color(ORANGE_SOFT, R(lx + c * cell, ly, cell, size))
         snap.pop()
-        self._border(snap, lx + c * cell - 1, ly + c * cell - 1, cell + 2, cell + 2, 1.5, ACCENT)
+        self._border(snap, lx + c * cell - 1, ly + c * cell - 1, cell + 2, cell + 2, 1.5, ORANGE)
         snap.append_border(rr, [1.0] * 4, [theme.rgba('#FFFFFF', 0.22)] * 4)
 
         rgb = s.cap.color_at(ix, iy)
@@ -1007,9 +1099,9 @@ class OverlayWindow(Gtk.Window):
         self.canvas = Canvas(session, mon)
         self.overlay = Gtk.Overlay(child=self.canvas)
         self.toolbar = Toolbar(session)
-        self.props = PropsBar(session)
+        self.modebar = ModeBar(session)
         self.overlay.add_overlay(self.toolbar)
-        self.overlay.add_overlay(self.props)
+        self.overlay.add_overlay(self.modebar)
         self.set_child(self.overlay)
 
         keys = Gtk.EventControllerKey()
@@ -1023,46 +1115,38 @@ class OverlayWindow(Gtk.Window):
             self.fullscreen()
 
     def place_chrome(self, visible):
-        tb, pb = self.toolbar, self.props
         s = self.session
+        choose = visible and s.phase == 'choose'
+        edit = visible and s.phase == 'edit'
+        self._place_bar(self.modebar, choose, center=True)
+        self._place_bar(self.toolbar, edit, center=False)
+
+    def _place_bar(self, bar, visible, center):
         if not visible:
-            tb.set_visible(False)
-            pb.set_visible(False)
+            bar.set_visible(False)
             return
-        tb.sync()
-        pb.sync()
+        bar.sync()
         W, H = self.canvas.get_width(), self.canvas.get_height()
-        x, y, w, h = self.canvas.rect_widget(s.sel)
         gap, edge = 10, 8
-
-        show_props = s.tool is not None
-        # Hidden widgets measure as 0x0 and margins count towards the
-        # measured size, so show the bars and clear margins first.
-        for bar, shown in ((tb, True), (pb, show_props)):
-            bar.set_visible(shown)
-            bar.set_margin_start(0)
-            bar.set_margin_top(0)
-        tw = tb.measure(Gtk.Orientation.HORIZONTAL, -1)[1]
-        th = tb.measure(Gtk.Orientation.VERTICAL, -1)[1]
-        pw = pb.measure(Gtk.Orientation.HORIZONTAL, -1)[1] if show_props else 0
-        ph = pb.measure(Gtk.Orientation.VERTICAL, -1)[1] if show_props else 0
-        need = th + (ph + 6 if show_props else 0)
-
-        if y + h + gap + need <= H - edge:
-            ty, side = y + h + gap, 'below'
-        elif y - gap - need >= edge:
-            ty, side = y - gap - th, 'above'
+        # Hidden children measure as 0, and margins count towards the
+        # measured size, so show the bar and clear margins first.
+        bar.set_visible(True)
+        bar.set_margin_start(0)
+        bar.set_margin_top(0)
+        tw = bar.measure(Gtk.Orientation.HORIZONTAL, -1)[1]
+        th = bar.measure(Gtk.Orientation.VERTICAL, -1)[1]
+        if center:
+            tx = max(edge, (W - tw) / 2)
+            ty = H - th - 28
         else:
-            ty, side = y + h - gap - th, 'inside'
-        tx = min(max(edge, x + w - tw), W - tw - edge)
-        ty = min(max(edge, ty), H - th - edge)
-        tb.set_margin_start(int(tx))
-        tb.set_margin_top(int(ty))
-        tb.set_visible(True)
-
-        if show_props:
-            px = min(max(edge, tx), W - pw - edge)
-            py = ty + th + 6 if side == 'below' else ty - 6 - ph
-            pb.set_margin_start(int(px))
-            pb.set_margin_top(int(min(max(edge, py), H - ph - edge)))
-        pb.set_visible(show_props)
+            x, y, w, h = self.canvas.rect_widget(self.session.sel)
+            if y + h + gap + th <= H - edge:
+                ty = y + h + gap
+            elif y - gap - th >= edge:
+                ty = y - gap - th
+            else:
+                ty = y + h - gap - th
+            tx = min(max(edge, x + w - tw), max(edge, W - tw - edge))
+        ty = min(max(edge, ty), max(edge, H - th - edge))
+        bar.set_margin_start(int(tx))
+        bar.set_margin_top(int(ty))

@@ -1,3 +1,19 @@
+lumen (1.5.0) unstable; urgency=medium
+
+  * After a selection, choose a still or a region recording. Left and right
+    switch modes; Enter confirms. A still opens one annotation bar. A
+    recording shows a 3-2-1 countdown, then calls GNOME Shell's existing
+    ScreencastArea service. There is no separate encoder.
+  * Quality cycles 24, 30 and 60 fps. Videos are saved in the Videos
+    directory as Lumen_<date>_<time>. The control capsule stays outside the
+    recorded rectangle; a full-screen selection leaves a strip at the bottom.
+  * Draw the selection with a thin Hermès-orange line. Confirm, the record
+    dot and stop use cinnabar. Tools, size and colours share one bar.
+  * The system recorder captures picture only: no microphone, system audio
+    or pause. Those controls explain the limit when pressed.
+
+ -- chenwu <geekchenwu@gmail.com>  Sun, 01 Nov 2026 07:25:00 -0800
+
 lumen (1.4.0) unstable; urgency=medium
 
   * Packaging and documentation update.

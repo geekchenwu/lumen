@@ -9,8 +9,8 @@
   <update_contact>geekchenwu@gmail.com</update_contact>
   <name>Lumen</name>
   <name xml:lang="zh_CN">鹿门</name>
-  <summary>Instant screenshots, annotation and pinning for GNOME</summary>
-  <summary xml:lang="zh_CN">GNOME 上的即时截图、标注与贴图</summary>
+  <summary>Instant screenshots, annotation, pinning and region recording for GNOME</summary>
+  <summary xml:lang="zh_CN">GNOME 上的即时截图、标注、贴图与区域录屏</summary>
   <description>
     <p>
       Lumen captures from inside GNOME Shell the moment you press F1, so there is no
@@ -23,6 +23,7 @@
       <li>Window, menu and panel auto-detection with a pixel loupe and colour picker</li>
       <li>Rectangle, ellipse, arrow, line, pen, marker, text, mosaic and step markers</li>
       <li>Pin captures or clipboard contents on top of every window; zoom and fade them</li>
+      <li>Record the selected region through GNOME Shell's existing screencast, with a countdown and a control capsule kept outside the picture</li>
     </ul>
   </description>
   <launchable type="desktop-id">io.github.lumen.Lumen.desktop</launchable>
@@ -49,6 +50,11 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.5.0" date="2026-11-01">
+      <description>
+        <p>Choose a still or a region recording after selecting. Recording counts down from 3, then uses GNOME Shell's existing screencast at 24, 30 or 60 fps. The control capsule stays outside the picture. The selection line is Hermès orange; confirm and stop are cinnabar.</p>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-10-30">
       <description>
         <p>Packaging and documentation update.</p>

@@ -7,7 +7,7 @@ Supported desktop: GNOME Shell 50 on Debian/Ubuntu with GTK 4.14 or newer.
 Run the versioned installer as your normal desktop user:
 
 ```sh
-sh Lumen-1.4.0.run
+sh Lumen-1.5.0.run
 ```
 
 It contains the Debian package, verifies its checksum, and asks for administrator
@@ -24,7 +24,7 @@ The `.deb` declares the same complete dependency list. Use a package manager tha
 resolves dependencies:
 
 ```sh
-sudo apt install ./lumen_1.4.0_all.deb
+sudo apt install ./lumen_1.5.0_all.deb
 lumen activate
 ```
 

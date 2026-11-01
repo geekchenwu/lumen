@@ -145,6 +145,39 @@ def _check(cr):
     cr.restore()
 
 
+
+def _record(cr):
+    cr.arc(10, 10, 5.2, 0, 2 * math.pi)
+    cr.fill()
+
+
+def _stop(cr):
+    cr.rectangle(5.2, 5.2, 9.6, 9.6)
+    cr.fill()
+
+
+def _pause(cr):
+    cr.rectangle(6, 4.5, 2.6, 11)
+    cr.rectangle(11.4, 4.5, 2.6, 11)
+    cr.fill()
+
+
+def _mic(cr):
+    cr.arc(10, 8.2, 3.1, 0, 2 * math.pi)
+    cr.stroke()
+    cr.arc(10, 13.2, 5.2, math.pi, 0)
+    cr.stroke()
+    _poly(cr, [(10, 13.2), (10, 16.6)])
+    cr.stroke()
+
+
+def _speaker(cr):
+    _poly(cr, [(4.5, 8), (8, 8), (12.2, 5), (12.2, 15), (8, 12), (4.5, 12)], close=True)
+    cr.stroke()
+    cr.arc(13.2, 10, 2.4, -0.7, 0.7)
+    cr.stroke()
+
+
 def _close(cr):
     _poly(cr, [(5.5, 5.5), (14.5, 14.5)])
     cr.stroke()
@@ -157,6 +190,7 @@ GLYPHS = {
     'pen': _pen, 'marker': _marker, 'text': _text, 'mosaic': _mosaic,
     'step': _step, 'undo': _undo, 'redo': _redo, 'pin': _pin,
     'save': _save, 'check': _check, 'close': _close,
+    'record': _record, 'stop': _stop, 'pause': _pause, 'mic': _mic, 'speaker': _speaker,
 }
 
 

@@ -40,10 +40,11 @@
   </tr>
 </table>
 
-- **九种标注**：矩形、椭圆、箭头、直线、画笔、荧光笔、文字、马赛克、序号，单键切换，随时撤销重做。
-- **像素级选区**：拖拽框选或单击选中窗口；方向键 / WASD 逐像素微调，<kbd>R</kbd> 找回上次选区。
+- **九种标注**：矩形、椭圆、箭头、直线、画笔、荧光笔、文字、马赛克、序号，收在同一条工具栏上，单键切换，随时撤销重做。
+- **像素级选区**：拖拽框选或单击选中窗口；方向键 / WASD 逐像素微调，<kbd>R</kbd> 找回上次选区。选区是一条爱马仕橙细线，确认是朱砂。
+- **区域录屏**：框选后可切到录屏。确认后画面倒数 3、2、1，再调用系统已有的 GNOME 区域录制，不自带编码器。画质分流畅 24、标准 30、清晰 60 帧。文件在视频目录，名为 `Lumen_日期_时间`。计时胶囊在选区外面；铺满屏幕时底部留一条不录入。系统接口只录画面，不收音、不录系统声音，也不能暂停。
 - **取色**：放大镜显示坐标与颜色，<kbd>C</kbd> 复制色值，<kbd>Shift</kbd> 切换 HEX / RGB。
-- **一键输出**：<kbd>Enter</kbd> 复制，<kbd>Ctrl</kbd> <kbd>S</kbd> 保存，<kbd>Ctrl</kbd> <kbd>T</kbd> 贴图。
+- **一键输出**：<kbd>Ctrl</kbd> <kbd>C</kbd> 直接复制，标注中 <kbd>Enter</kbd> 也是复制；<kbd>Ctrl</kbd> <kbd>S</kbd> 保存，<kbd>Ctrl</kbd> <kbd>T</kbd> 贴图。
 - **剪贴板贴图**：<kbd>F3</kbd> 把剪贴板里的图片或文字贴出来，<kbd>Shift</kbd> <kbd>F3</kbd> 一键收起全部贴图。
 - **不等待**：屏幕一冻结就进入框选，无损编码在后台进行。
 - **装好即用**：扩展尚未加载时自动借用系统截图门户，下次登录后启用全部原生能力。
@@ -54,10 +55,10 @@
 
 ```sh
 # 单文件安装器：校验内嵌的安装包，用 APT 补齐依赖
-sh Lumen-1.4.0.run
+sh Lumen-1.5.0.run
 
 # 或者 Debian 包
-sudo apt install ./lumen_1.4.0_all.deb
+sudo apt install ./lumen_1.5.0_all.deb
 lumen activate
 ```
 
@@ -73,7 +74,7 @@ lumen activate
 
 | 按键 | 作用 |
 | :-- | :-- |
-| <kbd>F1</kbd> | 截图并标注 |
+| <kbd>F1</kbd> | 框选，然后截图或录屏 |
 | <kbd>Ctrl</kbd> <kbd>F1</kbd> | 截图后直接复制 |
 | <kbd>F3</kbd> | 贴出剪贴板里的图片或文字 |
 | <kbd>Shift</kbd> <kbd>F3</kbd> | 隐藏 / 显示全部贴图 |
@@ -97,10 +98,19 @@ lumen hotkeys restore
 | <kbd>C</kbd> · <kbd>Shift</kbd> | 复制色值 · 切换 HEX / RGB |
 | <kbd>R</kbd> | 找回上次选区 |
 | <kbd>Ctrl</kbd> <kbd>A</kbd> | 选中全屏 |
-| <kbd>Enter</kbd> | 复制悬停中的窗口或控件 |
+| <kbd>Enter</kbd> | 选中悬停的窗口或控件 |
 | <kbd>Esc</kbd> · 右键 | 退出 |
 
-| 选区确定后 | |
+| 选区出来之后 | |
+| :-- | :-- |
+| 左右方向键 | 在「截图 / 录屏」之间切换 |
+| <kbd>Enter</kbd> · 双击选区 · 朱砂键 | 确认。截图进入标注；录屏倒数 3、2、1 后开始 |
+| 录屏时点击选区外 | 重新框选 |
+| 画质 | 点击切换：流畅 24 · 标准 30 · 清晰 60 |
+| <kbd>Ctrl</kbd> <kbd>C</kbd> | 直接复制，不进入标注 |
+| <kbd>Esc</kbd> | 取消倒数，或退出 |
+
+| 进入标注之后 | |
 | :-- | :-- |
 | <kbd>R</kbd> <kbd>E</kbd> <kbd>A</kbd> <kbd>L</kbd> <kbd>P</kbd> <kbd>M</kbd> <kbd>T</kbd> <kbd>X</kbd> <kbd>N</kbd> | 矩形 · 椭圆 · 箭头 · 直线 · 画笔 · 荧光笔 · 文字 · 马赛克 · 序号 |
 | <kbd>[</kbd> <kbd>]</kbd> · 滚轮 | 调整当前工具的粗细或字号 |
@@ -110,7 +120,7 @@ lumen hotkeys restore
 | <kbd>Enter</kbd> · <kbd>Ctrl</kbd> <kbd>C</kbd> · 双击选区 | 复制到剪贴板 |
 | <kbd>Ctrl</kbd> <kbd>S</kbd> · <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>S</kbd> | 保存 · 另存为 |
 | <kbd>Ctrl</kbd> <kbd>T</kbd> | 贴到屏幕 |
-| 右键 | 逐级后退：收起工具 → 重新框选 → 退出 |
+| 右键 | 逐级后退：收起工具 → 回到「截图 / 录屏」→ 重新框选 → 退出 |
 | <kbd>Esc</kbd> | 退出 |
 
 | 贴图 | |
@@ -147,7 +157,7 @@ sudo apt install python3 python3-gi python3-gi-cairo python3-cairo \
   gir1.2-rsvg-2.0 dpkg-dev
 git clone https://github.com/geekchenwu/lumen.git
 cd lumen
-bash packaging/build-deb.sh   # 生成 dist/Lumen-1.4.0.run 与 dist/lumen_1.4.0_all.deb
+bash packaging/build-deb.sh   # 生成 dist/Lumen-1.5.0.run 与 dist/lumen_1.5.0_all.deb
 ```
 
 单元测试：
@@ -178,7 +188,8 @@ bash install.sh
 
 **Lumen** (鹿门, *lù mén*) is a screenshot, annotation and pinning tool for GNOME Shell 50 on Debian and Ubuntu.
 It captures inside GNOME Shell, so open menus and popups stay in the shot.
-Download `Lumen-1.4.0.run` or `lumen_1.4.0_all.deb` from [Releases](https://github.com/geekchenwu/lumen/releases/latest).
+Download `Lumen-1.5.0.run` or `lumen_1.5.0_all.deb` from [Releases](https://github.com/geekchenwu/lumen/releases/latest).
+After a selection, switch between a still and a region recording. Recording counts down from 3 and uses GNOME Shell's existing screencast.
 
 <kbd>F1</kbd> capture and annotate · <kbd>Ctrl</kbd> <kbd>F1</kbd> capture to the clipboard ·
 <kbd>F3</kbd> pin the clipboard image or text · <kbd>Shift</kbd> <kbd>F3</kbd> hide or show all pins.
