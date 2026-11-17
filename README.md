@@ -68,6 +68,8 @@ lumen activate
 
 **环境**：GNOME Shell 50 · Debian / Ubuntu · Python 3.12+ · GTK 4.14+
 
+鹿门默认使用 GTK 的 Cairo 软件渲染，避免部分显卡在切换 HDR 后框选时显示器黑屏；这可能增加截图界面的 CPU 开销。需要对照测试 GPU 渲染时，可在启动鹿门时显式设置 `GSK_RENDERER=gl` 或 `GSK_RENDERER=vulkan`。
+
 ## 快捷键
 
 <img src="screenshots/shot-prefs.png" align="right" width="320" alt="设置页：快捷键一览与冲突接管">

@@ -2,6 +2,10 @@
 import os
 import sys
 
+# GPU-backed GTK rendering can black out the physical display when selecting
+# a capture after an HDR mode switch. Keep an explicit user choice intact.
+os.environ.setdefault('GSK_RENDERER', 'cairo')
+
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
 from lumen_app.cli import main  # noqa: E402
