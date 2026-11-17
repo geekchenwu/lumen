@@ -1089,6 +1089,34 @@ class Canvas(Gtk.Widget):
         snap.restore()
 
 
+def bar_origin(sel, bar, screen, gap=6, edge=8, anchor='center'):
+    """Keep a capsule against the selection instead of the screen edge.
+
+    sel is (x, y, w, h). bar and screen are (w, h). Prefer a short gap under
+    the selection; if that would leave the screen, sit just above it; if the
+    selection already reaches both, tuck inside the bottom edge. anchor
+    'center' centers on the selection, 'end' aligns to its right edge.
+    """
+    x, y, w, h = sel
+    tw, th = bar
+    width, height = screen
+    if anchor == 'end':
+        tx = x + w - tw
+    else:
+        tx = x + (w - tw) / 2
+    tx = min(max(edge, tx), max(edge, width - tw - edge))
+    below = y + h + gap
+    above = y - gap - th
+    if below + th <= height - edge:
+        ty = below
+    elif above >= edge:
+        ty = above
+    else:
+        ty = y + max(gap, h - th - gap)
+    ty = min(max(edge, ty), max(edge, height - th - edge))
+    return (int(tx), int(ty))
+
+
 class OverlayWindow(Gtk.Window):
     def __init__(self, session, mon, gdk_monitor):
         super().__init__(application=session.app, title='lumen-overlay', decorated=False)
@@ -1118,16 +1146,17 @@ class OverlayWindow(Gtk.Window):
         s = self.session
         choose = visible and s.phase == 'choose'
         edit = visible and s.phase == 'edit'
-        self._place_bar(self.modebar, choose, center=True)
-        self._place_bar(self.toolbar, edit, center=False)
+        # The mode capsule is centered on the selection. The annotation bar
+        # keeps its right edge on the selection's right edge.
+        self._place_bar(self.modebar, choose, anchor='center')
+        self._place_bar(self.toolbar, edit, anchor='end')
 
-    def _place_bar(self, bar, visible, center):
+    def _place_bar(self, bar, visible, anchor):
         if not visible:
             bar.set_visible(False)
             return
         bar.sync()
         W, H = self.canvas.get_width(), self.canvas.get_height()
-        gap, edge = 10, 8
         # Hidden children measure as 0, and margins count towards the
         # measured size, so show the bar and clear margins first.
         bar.set_visible(True)
@@ -1135,18 +1164,7 @@ class OverlayWindow(Gtk.Window):
         bar.set_margin_top(0)
         tw = bar.measure(Gtk.Orientation.HORIZONTAL, -1)[1]
         th = bar.measure(Gtk.Orientation.VERTICAL, -1)[1]
-        if center:
-            tx = max(edge, (W - tw) / 2)
-            ty = H - th - 28
-        else:
-            x, y, w, h = self.canvas.rect_widget(self.session.sel)
-            if y + h + gap + th <= H - edge:
-                ty = y + h + gap
-            elif y - gap - th >= edge:
-                ty = y - gap - th
-            else:
-                ty = y + h - gap - th
-            tx = min(max(edge, x + w - tw), max(edge, W - tw - edge))
-        ty = min(max(edge, ty), max(edge, H - th - edge))
-        bar.set_margin_start(int(tx))
-        bar.set_margin_top(int(ty))
+        sel = self.canvas.rect_widget(self.session.sel)
+        tx, ty = bar_origin(sel, (tw, th), (W, H), anchor=anchor)
+        bar.set_margin_start(tx)
+        bar.set_margin_top(ty)

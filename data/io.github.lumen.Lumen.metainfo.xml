@@ -50,6 +50,11 @@
   </supports>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="1.5.1" date="2026-11-16">
+      <description>
+        <p>Keep the mode capsule and annotation bar tight against the selection instead of pinning them to the screen edge.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-11-01">
       <description>
         <p>Choose a still or a region recording after selecting. Recording counts down from 3, then uses GNOME Shell's existing screencast at 24, 30 or 60 fps. The control capsule stays outside the picture. The selection line is Hermès orange; confirm and stop are cinnabar.</p>
