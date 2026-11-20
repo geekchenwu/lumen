@@ -1,4 +1,4 @@
-VERSION = '1.5.1'
+VERSION = '1.5.2'
 APP_ID = 'io.github.lumen.Lumen'
 DAEMON_PATH = '/io/github/lumen/Lumen/Daemon'
 DAEMON_IFACE = 'io.github.lumen.Daemon'

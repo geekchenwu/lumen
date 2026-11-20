@@ -1,3 +1,13 @@
+lumen (1.5.2) unstable; urgency=medium
+
+  * Draw the whole capture inside the editor once its pixels are ready, so
+    the view no longer depends on GNOME Shell's frozen backdrop staying
+    visible behind the transparent window (black screen on newer NVIDIA
+    drivers), and sample it with linear filtering so the selection stays
+    sharp at fractional monitor scales.
+
+ -- chenwu <geekchenwu@gmail.com>  Thu, 20 Nov 2026 10:10:00 -0800
+
 lumen (1.5.1) unstable; urgency=medium
 
   * Keep the mode capsule and annotation bar right against the selection

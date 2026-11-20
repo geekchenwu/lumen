@@ -871,8 +871,11 @@ class Canvas(Gtk.Widget):
         f = s.f
         mx, my = self.mon['x'], self.mon['y']
         snap.push_clip(R(0, 0, w, h))
-        if not s.backdrop:
-            snap.append_scaled_texture(cap.texture, Gsk.ScalingFilter.NEAREST,
+        # Once the pixels have arrived, draw the whole frame ourselves. The
+        # shell's frozen backdrop is only needed for the first instant before
+        # they are decoded, so the editor never depends on it staying visible.
+        if cap.texture is not None:
+            snap.append_scaled_texture(cap.texture, Gsk.ScalingFilter.LINEAR,
                                        R(-mx, -my, cap.width / f, cap.height / f))
 
         bright = s.sel if s.sel else (s.hover.rect if s.hover else None)

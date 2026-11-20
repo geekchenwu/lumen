@@ -4,7 +4,7 @@
   "description": "Instant screenshots, annotation, pinning and region recording. Captures inside GNOME Shell, so menus and popups stay in the shot.",
   "shell-version": ["50"],
   "settings-schema": "org.gnome.shell.extensions.lumen",
-  "version": 6,
-  "version-name": "1.5.1",
+  "version": 7,
+  "version-name": "1.5.2",
   "contact-email": "geekchenwu@gmail.com"
 }
